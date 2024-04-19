@@ -1,204 +1,179 @@
+/*Create a database and import tables into it*/
+CREATE DATABASE Gaming_Analysis;
 
---1)Extract `P_ID`, `Dev_ID`, `PName`, and `Difficulty_level` of all players at Level 0.
-
-SELECT
-       Ld.P_ID,
-	   Dev_ID,
-	   PName,
-	   Difficulty,
-	   Level
-FROM
-       Ld JOIN Pd ON (Ld.P_ID = Pd.P_ID)
-WHERE 
-       Level = 0;
+/*Modify the data and delete the extra column*/
+USE Gaming_Analysis
+ALTER TABLE Pd DROP COLUMN Column1;
+ALTER TABLE Pd ADD CONSTRAINT P_ID PRIMARY KEY(P_ID);
+ALTER TABLE Pd ALTER COLUMN L1_Status VARCHAR(30);
+ALTER TABLE Pd ALTER COLUMN L2_Status VARCHAR(30);
+ALTER TABLE Ld DROP COLUMN Column1;
 
 
-
---2)Find `Level1_code` wise average `Kill_Count` where `lives_earned` is 2, and at least 3 stages are crossed.
-
-SELECT 
-       L1_code, 
-	   AVG(Kill_Count) AS Avg_Kill_Count
-FROM 
-       Ld JOIN Pd ON Ld.P_ID = Pd.P_ID
-WHERE 
-       lives_earned = 2
-GROUP BY 
-       L1_code
-HAVING 
-       COUNT (Stages_crossed) >= 3;
-
-
-
---3)Find the total number of stages crossed at each difficulty level for Level 2 with players using `zm_series` devices. Arrange the result in decreasing order of the total number of stages crossed.
-
-SELECT 
-       Difficulty, 
-	   SUM(Stages_crossed) AS Total_Stages_Crossed
-FROM 
-       Ld
-WHERE 
-       Level = 2 AND Dev_ID LIKE 'zm%'
-GROUP BY 
-       Difficulty
-ORDER BY  
-       Total_Stages_Crossed DESC;
-
-
-
---4)Extract `P_ID` and the total number of unique dates for those players who have played games on multiple days.
-
-SELECT 
-       P_ID, 
-	   COUNT(DISTINCT Start_Datetime) AS Total_Unique_Dates
-FROM 
-       Ld
-GROUP BY 
-       P_ID
-HAVING
-       COUNT(DISTINCT Start_Datetime) > 1;
-
-
-
---5)Find `P_ID` and levelwise sum of `kill_counts` where `kill_count` is greater than the average kill count for Medium difficulty.
-
-SELECT 
-       P_ID, 
-	   Level, 
-	   SUM(Kill_Count) AS Total_Kills
-FROM 
-       Ld
-WHERE 
-       Difficulty = 'Medium' AND 
-	   kill_count > (SELECT AVG(kill_count) FROM Ld WHERE Difficulty = 'Medium')
-GROUP BY 
-       P_ID, 
-	   Level;
-
-
-
---6)Find `Level` and its corresponding `Level_code`wise sum of lives earned, excluding Level 0. Arrange in ascending order of level.
-
-SELECT 
-       Level, 
-	   L1_Code, 
-	   SUM(Lives_Earned) AS TotalLivesEarned
-FROM 
-       Ld JOIN Pd ON (Ld.P_ID = Pd.P_ID)
-WHERE 
-       Level = 1
-GROUP BY 
-       Level, 
-	   L1_Code
-ORDER BY 
-       Level ASC;
---
-SELECT 
-       Level, 
-	   L2_Code, 
-	   SUM(Lives_Earned) AS TotalLivesEarned
-FROM 
-       Ld JOIN Pd ON (Ld.P_ID = Pd.P_ID)
-WHERE 
-       Level = 2
-GROUP BY 
-       Level, 
-	   L2_Code
-ORDER BY 
-       Level ASC;
-
-
-
---7)Find the top 3 scores based on each `Dev_ID` and rank them in increasing order using `Row_Number`. Display the difficulty as well.
+/*1) Extract P_ID, Dev_ID, PName and Difficulty_level of all players at level 0*/
+USE Gaming_Analysis
 
 SELECT
-       TOP (3) Score,
-	   Dev_ID,
-	   Difficulty,
-	   ROW_NUMBER() OVER (PARTITION BY Dev_ID ORDER BY Score) AS RowNumber
+      Ld.P_ID,
+	  Ld.Dev_ID,
+	  Pd.PName,
+	  Ld.Difficulty
 FROM
-       Ld;
-
-
-
---8)Find the `first_login` datetime for each device ID.
-
+      Ld INNER JOIN Pd ON (Ld.P_ID = Pd.P_ID)
+WHERE
+	  Level = 0;
+	  
+/*2)Find Level1_code wise Avg_Kill_Count where lives_earned is 2 and at least 3 stages are crossed*/
+USE Gaming_Analysis
 SELECT
-       Dev_ID,
-	   MIN(Start_Datetime) AS First_Login
+      Pd.L1_Code,
+	  AVG(Kill_Count) AS avg_kill_count
 FROM
-       Ld
+      Ld INNER JOIN Pd ON (Ld.P_ID = Pd.P_ID)
+WHERE
+      Lives_Earned = 2 AND
+	  Stages_crossed >= 3
 GROUP BY
-       Ld.Dev_ID;
+      L1_Code;
 
-
-
---9)Find the top 5 scores based on each difficulty level and rank them in increasing order using `Rank`. Display `Dev_ID` as well.
-
+/*3)Find the total number of stages crossed at each diffuculty level where for Level2 with players use zm_series devices. Arrange the result in decsreasing order of total number of stages crossed*/
+USE Gaming_Analysis
 SELECT
-       TOP (5) Score,
-	   Difficulty,
-	   Dev_ID,
-       RANK() OVER (PARTITION BY Difficulty ORDER BY Score) AS Rank
+      SUM(Stages_crossed) AS total_stages_crossed,
+	  Difficulty
 FROM
-       Ld;
-
-
-
---10)Find the device ID that is first logged in (based on `start_datetime`) for each player (`P_ID`). Output should contain player ID, device ID, and first login datetime.
-
-SELECT
-       P_ID,
-	   Dev_ID,
-	   MIN(Start_Datetime) AS First_longin_datetime
-FROM
-       Ld
+     Ld
+WHERE
+     Level = 2 AND
+	 Dev_ID like 'zm%'
 GROUP BY 
-       Dev_ID,
-	   P_ID;
+     Difficulty
+ORDER BY 
+     total_stages_crossed DESC;
 
-
-
---11)For each player and date, determine how many `kill_counts` were played by the player so far.
---a) Using window functions
---b) Without window functions
-
+/*4)Extract P_ID and the total number of unique dates for those players who have played games on multiple days*/
+USE Gaming_Analysis
 SELECT
       P_ID,
-	  CAST(Start_Datetime AS date) AS Date,
-	  SUM(Kill_Count) OVER(PARTITION BY P_ID ORDER BY Start_Datetime) AS Total_Kill_Count --Using window functions
+	  COUNT(DISTINCT Start_datetime) AS unique_dates
 FROM
-       Ld;
---------------------------------
+     Ld
+GROUP BY 
+     P_ID
+HAVING
+     COUNT(DISTINCT Start_datetime) > 1;
+
+/*5)Find P_ID and level wise sum of kill_counts where kill_count is greater than avg kill count for the Medium difficulty*/
+USE Gaming_Analysis
 SELECT
       P_ID,
-	  CAST(Start_Datetime AS date) AS Date,
-	  SUM(Kill_Count) AS Total_Kill_Count
+	  Level,
+	  SUM(Kill_Count) AS total_kill_count
 FROM
-       Ld
+      Ld
+WHERE
+      Kill_Count > (SELECT AVG(Kill_Count) FROM Ld WHERE Difficulty = 'Medium')
 GROUP BY 
-       P_ID,
-	   Start_Datetime
-ORDER BY
-       P_ID, Start_Datetime;
+      P_ID,
+	  Level;
 
+/*6)Find Level and its corresponding Level code wise sum of lives earned excluding level 0. Arrange in asecending order of level*/
+USE Gaming_Analysis
+SELECT
+      Level,
+	  COALESCE (L1_Code, L2_Code) AS Level_code,
+	  SUM(Lives_Earned) AS total_lives_earned
+FROM
+      Ld INNER JOIN Pd ON (Ld.P_ID = Pd.P_ID)
 
+WHERE
+      Level <> 0 
+GROUP BY
+      Level,
+	  L1_Code,
+	  L2_Code
+ORDER BY 
+      Level ASC;
 
---12)Find the cumulative sum of stages crossed over `start_datetime` for each `P_ID`, excluding the most recent `start_datetime`.
+/*7)Find Top 3 score based on each dev_id and Rank them in increasing order using Row_Number. Display difficulty as well*/
+USE Gaming_Analysis
+SELECT
+      TOP 3 (Score),
+	  Dev_ID,
+	  ROW_NUMBER() OVER(PARTITION BY Dev_ID ORDER BY Score) AS rownumber,
+	  Difficulty
+FROM
+      Ld
+GROUP BY 
+      Dev_ID,
+	  Score,
+	  Difficulty;
 
+/*8)Find first_login datetime for each device id*/
+USE Gaming_Analysis
+SELECT
+      MIN(Start_datetime) AS first_login_datetime,
+	  Dev_ID
+FROM
+      Ld
+GROUP BY 
+      Dev_ID;
+
+/*9)Find Top 5 score based on each difficulty level and Rank them in increasing order using Rank. Display dev_id as well*/
+USE Gaming_Analysis
+SELECT
+      TOP 5 (Score),
+	  Difficulty,
+	  Dev_ID,
+	  RANK() OVER(PARTITION BY Dev_id ORDER BY Score) AS 'Rank'
+FROM
+      Ld;
+
+/*10)Find the device ID that is first logged in(based on start_datetime) for each player(p_id). Output should contain player id, device id and first login datetime*/
+USE Gaming_Analysis
+SELECT
+      P_ID,
+	  Dev_ID,
+	  MIN(Start_datetime) AS first_login_datetime
+FROM
+      Ld
+GROUP BY
+      P_ID,
+	  Dev_ID;
+
+/*11)For each player and date, how many kill_count played so far by the player. That is, the total number of games played by the player until that date.*/
+-- a) window function--
+USE Gaming_Analysis
+SELECT
+      P_ID,
+	  CAST(Start_datetime AS date) AS 'Date',
+	  SUM(Kill_Count) OVER(PARTITION BY P_ID ORDER BY Start_datetime) AS total_kill_count
+FROM
+      Ld;
+
+-- b) without window function.
+USE Gaming_Analysis
+SELECT 
+      P_ID, 
+	  CAST(Start_datetime AS date) AS 'Date', 
+	  (SELECT SUM(Kill_Count) FROM Ld ld2 WHERE ld2.P_ID = Ld.P_ID AND ld2.Start_datetime <= Ld.Start_datetime) AS total_kill_count 
+FROM 
+      Ld;
+
+/*12)Find the cumulative sum of an stages crossed over a start_datetime for each player id but exclude the most recent start_datetime*/
+
+USE Gaming_Analysis
 SELECT
        P_ID,
 	   Start_Datetime,
-       SUM(Stages_crossed) OVER(PARTITION BY P_ID ORDER BY Start_Datetime ASC) AS Cumulative_Sum
+       SUM(Stages_crossed) OVER(PARTITION BY P_ID ORDER BY Start_Datetime ASC) AS cumulative_sum_of_stages_crossed
 FROM
        Ld;
 
-
-
---13)Extract the top 3 highest sums of scores for each `Dev_ID` and the corresponding `P_ID`.
-
+/*13)Extract the top 3 highest sums of scores for each `Dev_ID` and the corresponding `P_ID`*/
+USE Gaming_Analysis
 SELECT
-       TOP 3 SUM(Score) AS TOP_3,
+       TOP 3 SUM(Score) AS highest_scores,
 	   P_ID,
 	   Dev_ID
 FROM 
@@ -209,35 +184,20 @@ GROUP BY
 ORDER BY 
        SUM(Score) DESC;
 
-
-
---14)Find players who scored more than 50% of the average score, scored by the sum of scores for each `P_ID`.
-
-SELECT
-       P_ID,
-       AVG(Score) AS Avg_Score
-FROM
-       Ld
-GROUP BY
-       P_ID
-HAVING
-       MIN(Score) > 0.5 * AVG(Score);
-----
-SELECT
+/*14)Find players who scored more than 50% of the average score, scored by the sum of scores for each `P_ID`*/
+USE Gaming_Analysis
+SELECT 
       P_ID,
-      SUM(Score) AS Total_Score
+      SUM(Score) AS total_scores
 FROM
       Ld
-GROUP BY
+GROUP BY 
       P_ID
-ORDER BY
-      Total_Score;
+HAVING
+      SUM(Score) > 0.5*(SELECT AVG(Score) FROM Ld);
 
-
-
---15)Create a stored procedure to find the top `n` `headshots_count` based on each `Dev_ID` and rank them in increasing order using `Row_Number`. Display the difficulty as well.
-
-CREATE PROCEDURE dbo.spLd_GetTopHS 
+/*15)Create a stored procedure to find the top `n` `headshots_count` based on each `Dev_ID`and rank them in increasing order using `Row_Number`. Display the difficulty as well*/
+CREATE PROCEDURE top_n_headshots_count 
                 @n INT 
 AS 
 BEGIN
@@ -245,26 +205,22 @@ SELECT
       Dev_ID,
       headshots_count,
       difficulty,
-     ROW_NUMBER() OVER (PARTITION BY Dev_ID ORDER BY headshots_count) AS Rank
+      ROW_NUMBER() OVER (PARTITION BY Dev_ID ORDER BY headshots_count) AS Row_Number
 FROM
      Ld
 ORDER BY
   Dev_ID, 
-  Rank
+  Row_Number
 OFFSET
   0 ROWS
 FETCH NEXT
   @n ROWS ONLY;
 END
 
--------------
-EXEC	[dbo].[spLd_GetTopHS] @n = 4;
+EXEC	[dbo].[top_n_headshots_count] @n = 4;
 
-
-
---16)Create a function to return sum of Score for a given player_id.
-
-CREATE FUNCTION dbo.GetTotalScore
+/*16)Create a function to return sum of Score for a given player_id*/
+CREATE FUNCTION Total_Score
 (
     @player_id AS INT
 )
@@ -279,4 +235,5 @@ BEGIN
 
     RETURN @total_score;
 END;
-SELECT dbo.GetTotalScore (644);
+
+SELECT dbo.Total_Score (644) AS Total_Score;
