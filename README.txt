@@ -1,4 +1,4 @@
-                                                                                     Project Title: Gaming Analysis with SQL
+Project Title: Gaming Analysis with SQL
 
 Purpose:
 The primary purpose of this project is to analyze gaming data using SQL Server Management 
